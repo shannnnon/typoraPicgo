@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/static/js/wuxiancat/vant.index.css" />
+    <link
+      href="/static/font-awesome/css/font-awesome.min.css"
+      rel="stylesheet"
+      media="screen"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+    />
+    <title>无线猫灵随身Wi-Fi</title>
+
+    <style>
+      @import '/static/css/tangmi/common.css';
+      @import '/static/css/tangmi/index.css';
+
+.popTab {
+  overflow-y:scroll;
+}
+      .loadingTab {
+        position: absolute;
+        top: 50%;
+        left: 46%;
+        z-index: 9999;
+      }
+
+      .signTab .van-cell__title {
+        display: inline-flex;
+      }
+
+      [v-cloak] {
+        display: none;
+      }
+    </style>
+    <script src="/static/js/wuxiancat/statisticym.js"></script>
+  </head>
+  <body>
+    <div id="app" v-cloak>
+      <div class="header"></div>
+      <div class="top">
+        <span class="ml-10">当前设备号：{{number}}</span>
+        <van-button
+          plain
+          class="float-r trans_btn"
+          color="#ffffff"
+          @click="showTransDevTab"
+          >切换</van-button
+        >
+      </div>
+      <div class="content">
+        <div class="content_tab">
+          <div class="signTab">
+            <van-cell class="">
+              <van-cell class="font-blue">
+                <template #icon>
+                  <van-icon
+                    name="/static/images/wuxiancat/sign-icon.png"
+                  ></van-icon>
+                </template>
+                <template #title>
+                  <span style="margin-right: 4px;">{{signMsg}}</span> | <span style="margin-left: 4px;">{{signPower}}</span>
+                  <span
+                    style="display: inline-flex; margin-left: 10px"
+                    v-show="showLeftPower"
+                  >
+                    <van-icon
+                      class="inner-icon"
+                      name="/static/images/wuxiancat/battery-new.png"
+                    ></van-icon>
+                    {{leftPower}}</span
+                  >
+                </template>
+                <template #right-icon>
+                  <van-icon
+                    name="/static/images/wuxiancat/dev-icon.png"
+                  ></van-icon>
+                  <span>{{linkDevNum}} 台设备</span>
+                </template>
+              </van-cell>
+            </van-cell>
+          </div>
+          <van-notice-bar
+            v-if="showFlowError"
+            wrapable
+            :scrollable="false"
+            color="#EE4D2D"
+            background="#FFF5F0"
+            text="系统检测您有大文件下载行为,有停机风险,请立即停止该操作!"
+          ></van-notice-bar>
+          <div class="ta-c mt-20">
+            <van-circle
+              v-model:current-rate="currentRate"
+              :rate="rate"
+              :speed="100"
+              :color="gradientColor"
+              layer-color="#ECF0F4"
+              size="200"
+              stroke-width="50"
+              v-if="thisPackType == 1"
+            >
+              <template #default>
+                <div class="text-block__title font-blue mt-40">
+                  当日使用流量
+                </div>
+                <div class="text-block__title font-blue font-s-20">
+                  {{dayFlow}}MB
+                </div>
+                <div class="text-block__title">套餐剩余</div>
+                <div class="text-block__title mt-0 pt-0">{{packLeftFlow}}B</div>
+              </template>
+            </van-circle>
+            <div v-else>
+              <div
+                :class="{'full-circle': true, 'full-circle-danger': showFlowError}"
+              >
+                <div class="text-block__title font-w pt-70">当日使用流量</div>
+                <div class="text-block__title font-w font-s-20">
+                  {{dayFlow}}MB
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-block__title mt-20" v-show="showPackName">
+            当前生效套餐：{{thisPackName}}
+          </div>
+
+          <div class="text-block__title mt-0">
+            套餐到期时间：{{limitTime}}
+            <span class="float-r font-red">{{limitMsg}}</span>
+          </div>
+
+          <div class="text-block__title mt-0">
+            {{signMsgMifi != '' ? signMsgMifi : signMsg}}实名状态：{{authMsg}}
+            <span
+              class="float-r font-blue"
+              v-if="authStatus !== 1"
+              @click="handleAuth"
+              >点击实名</span
+            >
+          </div>
+          
+          <div class="text-block__title mt-0">
+            当前设备网络：{{signMsg}}
+            <span
+              class="float-r font-blue ml-10"
+              v-show="isUnTrinetTab && isSoftTrans"
+              @click="showTransNet"
+              >切换网络</span
+            >
+          </div>
+
+          <van-button
+            type="primary"
+            block
+            class="main_btn"
+            @click="handleTransRecharge"
+            >充值套餐</van-button
+          >
+        </div>
+      </div>
+      <div class="content">
+        <div class="content_tab" style="font-size: 14px">
+          <span class="ml-10">Wi-Fi名称：{{apname}}</span>
+        </div>
+        <div class="content_tab" style="font-size: 14px">
+          <span class="ml-10">Wi-Fi密码：{{appwd}}</span>
+          <span class="float-r font-blue" @click="showUptPasswdPop"
+            >修改名称/密码</span
+          >
+        </div>
+      </div>
+      <div class="footer mb-20">
+        温馨提示：
+        <div class="line-h-22">
+          1.
+          为了您的正常使用,请勿使用设备流量下载资源和视频,一旦被运营商风控检测,可能存在停机风险!
+        </div>
+        <div class="line-h-22">
+          2.
+          使用中如有任何疑问，请关注“无线猫灵”微信公众号,随时与我们联系，我们将竭诚为您服务！
+        </div>
+        <div class="line-h-22">3. 客服服务热点：0755-82895323</div>
+      </div>
+
+      
+      <!-- v-if="!hasSubscribed" -->
+      <img
+        class="subscribeTab"
+        src="/static/images/wuxiancat/subscribe-icon.png"
+        @click="subscribePop=true"
+      />
+
+      <!-- 欢迎tab -->
+      <van-overlay
+        class="popTab"
+        :show="welcomePop"
+        @click="welcomePop = false"
+      >
+        <div class="wrapper" @click.stop>
+          <div class="block" style="height: 550px">
+            <h4 class="mt-10">开始使用您的专属随身Wi-Fi吧</h4>
+
+            <div class="text-block__title font-blue">- 第1步 -</div>
+            <div class="text-block__title mb-5">
+              将设备进行通电,等待指示灯显示正常
+            </div>
+
+            <img
+              class="welcome-img"
+              src="/static/images/wuxiancat/online.gif"
+            />
+
+            <div class="text-block__title font-blue mt-10">- 第2步 -</div>
+            <div class="text-block__title mb-5">
+              找到设备Wi-Fi热点,输入密码进行连接
+            </div>
+            <img
+              class="welcome-img"
+              src="/static/images/wuxiancat/linkWifi.gif"
+            />
+
+            <div class="text-block__title ta-l mt-10">
+              温馨提示：设备出厂时内含1G测试流量,为了您的正常使用,请及时为设备充值流量!
+            </div>
+            <van-button
+              type="primary"
+              block
+              class="main_btn mt-10"
+              @click="hideWelcomePop"
+              >确认</van-button
+            >
+          </div>
+        </div>
+      </van-overlay>
+
+      <!-- 联通实名tab -->
+      <van-overlay class="popTab" :show="ltAuthPop" @click="ltAuthPop = false">
+        <div class="wrapper" @click.stop>
+          <div class="block" style="height: 600px">
+            <h4>联通网络需要实名认证后才能使用</h4>
+            <video
+              src="/static/images/wuxiancat/ltAuth.mp4"
+              class="w-100"
+              style="height: 150px"
+              controls="controls"
+              poster="/static/images/wuxiancat/ltAuth.png"
+            >
+              您的浏览器不支持 video 标签。
+            </video>
+            <div class="text-block__title font-blue mt-10">- 第1步 -</div>
+            <div class="text-block__title">
+              复制设备ICCID号，长按下方数字复制卡号
+            </div>
+            <div class="copy_num mt-10" id="ltAuth">
+              ICCID：<span>{{authIccid}}</span>
+            </div>
+
+            <div class="text-block__title font-blue mt-10">- 第2步 -</div>
+
+            <div class="text-block__title">
+              长按下方小程序码前往联通小程序进行实名
+            </div>
+            <img class="logo-img" src="/static/images/wuxiancat/authLT.png" />
+
+            <van-button
+              type="primary"
+              block
+              class="main_btn mt-10"
+              @click="ltAuthPop=false"
+              >确认</van-button
+            >
+          </div>
+        </div>
+      </van-overlay>
+      <van-overlay class="popTab" :show="dxAuthPop" @click="dxAuthPop = false">
+        <div class="wrapper" @click.stop>
+          <div class="block" style="height: 500px">
+            <h4>当前电信更新，应工信部要求，请完成实名登记</h4>
+            <video
+              src="/static/images/wuxiancat/dxAuth.mp4"
+              class="w-100"
+              style="height: 150px"
+              controls="controls"
+              poster="/static/images/wuxiancat/dxAuth.png"
+            >
+              您的浏览器不支持 video 标签。
+            </video>
+            <div class="text-block__title font-blue mt-10">- 第1步 -</div>
+            <div class="text-block__title">
+              复制设备ICCID号，长按下方数字复制ICCID号
+            </div>
+            <div class="copy_num mt-10">
+              ICCID：<span id="queryNum1">{{authIccid}}</span>
+            </div>
+            <div class="text-block__title font-blue mt-10">- 第2步 -</div>
+            <van-button
+              type="primary"
+              block
+              class="main_btn"
+              @click="gotoDxPlatform"
+              >前往电信官方实名页面</van-button
+            >
+            <van-button
+              type="primary"
+              block
+              class="main_btn mt-20"
+              style="
+                background-color: var(--van-gray-5);
+                border: var(--van-gray-5);
+              "
+              @click="dxAuthPop=false"
+              >关闭</van-button
+            >
+          </div>
+        </div>
+      </van-overlay>
+
+      <!-- 修改密码tab -->
+      <van-popup v-model:show="passwdPop" round closeable position="bottom">
+        <div class="panel">
+          <h4>修改Wi-Fi名称/密码</h4>
+
+          <van-cell-group>
+            <h2
+              class="text-block__title"
+              style="color: red"
+              v-if="showLinkDevMsg"
+            >
+              请先连接「无线猫灵」WIFI后修改密码
+            </h2>
+            <h2 class="text-block__title">设备Wi-Fi名称（最大长度为10位中文字或20位英文数字）</h2>
+            <van-field
+              v-model="apname"
+              clearable
+              placeholder="请输入新的Wi-Fi名称"
+              :error-message="errApnameMsg"
+            ></van-field>
+            <h2 class="text-block__title">设备Wi-Fi密码（仅支持数字或英文字符，长度需大于8位且小于16位）</h2>
+            <!-- right-icon="eye-o" -->
+            <!-- @click-right-icon="handleTogglePwd" -->
+            <van-field
+              v-model="showPwd"
+              clearable
+              placeholder="请输入新的Wi-Fi密码"
+              :error-message="errAppwdMsg"
+              @update:model-value="handleChangePwd"
+            ></van-field>
+
+            <div v-if="unSelf">
+              <h2 class="text-block__title font-red">
+                检测到你不是设备拥有者,本次操作需要手机验证码
+              </h2>
+              <h2 class="text-block__title">设备绑定手机号：{{phone}}</h2>
+              <van-field
+                v-model="sms"
+                type="number"
+                center
+                clearable
+                maxlength="4"
+                placeholder="请输入短信验证码"
+                :error-message="errCodeMsg"
+                class="float-l w-60-p mb-20"
+              ></van-field>
+              <van-button
+                plain
+                class="float-r"
+                style="
+                  border: 1px solid;
+                  border-radius: 4px;
+                  width: 35%;
+                  height: 45px;
+                "
+                color="#3274F7"
+                @click="handleSendMsg"
+                >{{codeTxt}}</van-button
+              >
+            </div>
+            <van-button
+              type="primary"
+              block
+              class="main_btn"
+              @click="submitChangePwd"
+              >确认修改</van-button
+            >
+          </van-cell-group>
+        </div>
+      </van-popup>
+
+      <!-- 切换网络tab -->
+      <van-popup v-model:show="transNetPop" round position="bottom">
+        <van-picker
+          title="请选择切换运营商"
+          :columns="operatorList"
+          :default-index="operatorIndex"
+          @confirm="submitTransNet"
+          @cancel="transNetPop = false"
+        ></van-picker>
+      </van-popup>
+
+      <!-- 切换设备tab -->
+      <van-popup
+        class="trans-dev"
+        v-model:show="transDevPop"
+        round
+        closeable
+        :style="{ height: popHeight }"
+        position="bottom"
+      >
+        <div class="panel">
+          <h4>切换设备</h4>
+          <van-cell-group>
+            <!-- :title="`设备号${index}: ${item.number}${item.number === number ? '(当前)' : ''}`" -->
+            <van-cell
+              :title="`${item.number}${item.number === number ? '(当前)' : ''}`"
+              v-for="(item, index) in devList"
+              :key="index"
+            >
+              <template #value>
+                <span
+                  :class="item.number === number ? 'font-g' : ''"
+                  @click="handleTransDev(item.number, index, $event)"
+                  >切换</span
+                >
+                <span @click="handleRemoveDev(item.number, index)">移除</span>
+              </template>
+            </van-cell>
+          </van-cell-group>
+        </div>
+      </van-popup>
+
+      <!-- 关注tab -->
+      <van-overlay
+        class="popTab"
+        :show="subscribePop"
+        @click="subscribePop = false"
+      >
+        <div class="wrapper" @click.stop>
+          <div class="block">
+            <h4>联系客服</h4>
+
+            <div class="text-block__title">
+              长按下方二维码关注“无线猫灵“公众号
+            </div>
+            <div class="text-block__title">
+              (关注后即可快速联系公众号客服)
+            </div>
+
+            <img class="logo-img" src="/static/images/myerweima.jpg" />
+            <van-button
+              type="primary"
+              block
+              class="main_btn"
+              @click="subscribePop=false"
+              >好的</van-button
+            >
+          </div>
+        </div>
+      </van-overlay>
+      <van-loading
+        v-if="orderLoading"
+        type="spinner"
+        color="#1989fa"
+        class="loadingTab"
+      ></van-loading>
+
+      <iframe id="ifr" name="ifr_name" style="display: none"> </iframe>
+      <iframe id="ifr2" name="ifr_name" style="display: none"> </iframe>
+    </div>
+    <div id="tmp" style="display: none"></div>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue@next"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vant@next/lib/vant.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.bootcss.com/qs/6.7.0/qs.min.js"></script> -->
+    <script src="/static/js/wuxiancat/vue@next.js"></script>
+    <script src="/static/js/wuxiancat/vant.min.js"></script>
+    <script src="/static/js/wuxiancat/axios.min.js"></script>
+    <script src="/static/js/wuxiancat/qs.min.js"></script>
+
+    <script src="/static/js/public/jquery-1.12.3.js"></script>
+    <script src="/static/js/ufi/lan.js"></script>
+    <!--  
+    
+    <script src="/static/js/ufi/ajax_calls.js" language="javascript"></script> -->
+    <script src="/static/js/wuxiancat/xml_helper.js"></script>
+    <script src="/static/js/ufi/md5.js"></script>
+    <script src="/static/js/ufi/utils.js" language="javascript"></script>
+    <script src="/static/js/wuxiancat/common.js"></script>
+    <script>
+      // 售后版：选择不同出货设备
+      let selectComponent = {}
+      let qs = Qs
+
+      const app = Vue.createApp({
+        data() {
+          return {
+            // 基础信息
+            number: '',
+            signMsg: '',
+            signMsgMifi: '',
+            signPower: '-',
+            linkDevNum: 0,
+            dayFlow: 0,
+            packLeftFlow: 0,
+            thisPackType: 1, // 1小流量，2大流量
+            showPackName: true,
+            thisPackName: '-',
+            limitTime: '-',
+            limitMsg: '',
+            operator: 1, // 当前运营商
+            authStatus: 2, // 1已实名，2未实名
+            authMsg: '-', //未实名网络不可用
+            authIccid: '-',
+            apname: '-',
+            showLeftPower: false,
+            leftPower: 0,
+            // 修改密码tab
+            appwd: '',
+            showPwd: '',
+            passwdPop: false,
+            unSelf: true,
+            isShowPwd: false,
+            phone: '-',
+            sms: '',
+            codeTxt: '获取验证码',
+            errCodeMsg: '',
+            errApnameMsg: '',
+            errAppwdMsg: '',
+            showLinkDevMsg: false,
+            // 切换设备
+            hasQueryDevList: false,
+            transDevPop: false,
+            devList: [],
+            // 是否关注
+            hasSubscribed: true,
+            subscribePop: false,
+            welcomePop: false, // 欢迎弹窗
+            ltAuthPop: false, // 联通实名弹窗
+            // 电信实名 -- 暂时mifi使用，未登记的还是要跳走
+            mifi_dx_card_auth: 2,
+            dxAuthPop: false,
+            // 圆环设置 -- 当日使用流量
+            gradientColor: {
+              '0%': '#D4E3FF',
+              '30%': '#D9E6FF',
+              '70%': '#0C5DFF'
+            },
+            currentRate: 0,
+            rate: 0,
+            showFlowError: false, // 流量超量提示
+            popHeight: '50%',
+            orderLoading: false,
+            isUnTrinetTab: true, // 是否非全网通
+            isSoftTrans: false, // 是否软切
+            transNetPop: false,
+            operatorList: [
+              { text: '电信', id: 2 },
+              { text: '联通', id: 1 }
+            ],
+            operatorIndex: 0 // 选择网络的默认索引
+          }
+        },
+        mounted() {
+          if (!checkIsWx()) {
+            vant.Toast('请用微信打开')
+            return false
+          }
+
+
+          const url = window.location.href
+          const cs = url.split('#')[0].split('?')
+          if (cs.length > 0 && cs[1] != undefined) {
+            const cs_arr = cs[1].split('&')
+            const query_param = cs_arr[0].split('=')
+            if (cs_arr.length > 0 && query_param[0] === 'id') {
+              // 对请求参数加简单验证
+              if (query_param[1].trim().length > 12) {
+                this.number = query_param[1]
+                localStorage.number = this.number
+              } else {
+                vant.Toast('请求异常')
+              }
+            }
+          }
+
+          if (this.number || localStorage.number) {
+            if (
+              !this.number ||
+              (this.number == '' && localStorage.number.length > 10)
+            ) {
+              this.number = localStorage.number
+            }
+            this.orderLoading = true
+            this.welcomePop = localStorage.welcomePop == 1 || false
+
+            // 查询是否实名
+            checkAuth(
+              this.number,
+              (data) => {
+                if (data.card_auth && data.card_auth == 1) {
+                  const this_time = new Date().getTime()
+                  if (
+                    !localStorage.force_refresh ||
+                    localStorage.force_refresh === 1 ||
+                    !localStorage.number ||
+                    this_time - localStorage.getItem('time') > 10000
+                  ) {
+                    localStorage.setItem('time', this_time)
+
+                    this.loadMain(true)
+                  } else {
+                    this.loadMain(false)
+                  }
+                } else {
+                  // vant.Toast('设备未实名，即将前往实名页')
+                  if (data.iccid && data.iccid != '') {
+                    localStorage.authRegist = 2
+                    localStorage.iccid = data.iccid
+                  } else {
+                    localStorage.removeItem('authRegist')
+                  }
+                  setTimeout(() => {
+                    window.location.href = '/welcome/pages/wuxiancat/welcome'
+                  }, 1000)
+                }
+              },
+              (errMsg) => {
+                this.orderLoading = false
+                if (errMsg == '实名记录不存在') {
+                  if (
+                    !window.location.href.includes(
+                      '/welcome/pages/wuxiancat/welcome'
+                    )
+                  ) {
+                    localStorage.removeItem('authRegist')
+                    setTimeout(() => {
+                      window.location.href = '/welcome/pages/wuxiancat/welcome'
+                    }, 1000)
+                  }
+                } else if (showToast) {
+                  vant.Toast(errMsg)
+                }
+              }
+            )
+          } else {
+            vant.Toast('请扫码进入')
+          }
+        },
+        methods: {
+          yyReq(type, other) {
+            let query_params = {
+              version: '0.0.1'
+            }
+            if (type === 1) {
+              // 查询信息
+              query_params['Getparm'] = '5_12_13_14_15_16_28'
+            } else if (type === 2) {
+              // 切换网络
+              query_params['operateType'] = '16'
+              query_params['esim'] = other['esim']
+            } else if (type === 3) {
+              // 修改密码
+              query_params['operateType'] = '6144'
+              query_params['ssid'] = other['apname']
+              query_params['key'] = window.btoa(other['appwd'])
+            }
+            axios
+              .post(
+                'http://192.168.0.1/action/http_interface',
+                JSON.stringify(query_params),
+                {
+                  headers: { 'content-Type': 'text/plain' }
+                }
+              )
+              .then((res) => {
+                let h_txt = res.data
+                h_txt = h_txt.replace('<html>', '')
+                h_txt = h_txt.replace('</html>', '')
+
+                if (typeof h_txt == 'string') {
+                  h_txt = JSON.parse(h_txt)
+                }
+
+                if (typeof h_txt != 'object') {
+                  console.log('返回参数异常，txt：' + h_txt)
+                }
+
+                if (type === 1) {
+                  rssi = h_txt.rssi
+                  // 查询全部
+                  var rssi_msg = getRsrp(rssi)
+                  this.signPower = rssi_msg
+                  updateHb(4, rssi)
+
+                  this.linkDevNum = h_txt.conn_cnt
+                  updateHb(2, h_txt.conn_cnt)
+                  // h_txt.hidden
+
+                  let passwd = window.atob(h_txt.key)
+                  //热点密码等
+                  if (
+                    localStorage.apname != h_txt.ssid ||
+                    localStorage.appwd != passwd
+                  ) {
+                    localStorage.apname = h_txt.ssid
+                    localStorage.appwd = passwd
+                    this.apname = h_txt.ssid
+                    this.appwd = passwd
+                  }
+
+                  let pwd_obj = {
+                    ssid: h_txt.ssid,
+                    key: passwd
+                  }
+                  updateHb(5, JSON.stringify(pwd_obj)) //更新当前使用卡片
+                } else if (operate == 2) {
+                  vant.Toast('网络切换成功')
+                  updateHb(3, other['esim'] - 3) //更新当前使用卡片
+                } else if (type === 3) {
+                  // 修改密码
+                  if (h_txt.errMsg && h_txt.errMsg == 0) {
+                    localStorage.apname = other['apname']
+                    localStorage.appwd = other['appwd']
+
+                    let pwd_obj = {
+                      ssid: other['apname'],
+                      key: other['appwd']
+                    }
+                    updateHb(5, JSON.stringify(pwd_obj)) //更新当前使用卡片
+                    //判断修改密码远程返回结果
+                    vant.Toast('热点名称和密码修改成功，请重新连接WiFi')
+                  }
+                }
+
+                this.orderLoading = false
+              })
+              .catch((e) => {
+                if (e.toString().indexOf('Network Error')) {
+                  this.showLinkDevMsg = true
+                  // 没有连接设备时会返回网络异常
+                  if (type == 3) {
+                    setTimeout(function () {
+                      // 自动刷新
+                      let pwd_obj = {
+                        ssid: other['apname'],
+                        key: other['appwd']
+                      }
+                      updateHb(5, JSON.stringify(pwd_obj)) //更新当前使用卡片
+                      vant.Toast('热点名称和密码修改完成，请重新连接WiFi')
+                      this.loadMain(true)
+                    }, 3000)
+                  } else if (type != 1) {
+                    vant.Toast('热点连接断开，请重新连接「无线猫灵」')
+                  }
+                }
+
+                this.orderLoading = false
+              })
+          },
+          cpeReq(operate, other) {
+            if (!operate || operate == '') {
+              this.orderLoading = false
+              return false
+            }
+
+            // 防止接口同时请求
+            localStorage.isOnline = 1
+
+            let url = ''
+            switch (operate) {
+              case 11:
+                url = 'routerinfo'
+                break
+              case 12:
+                url = 'online'
+                break
+              case 13:
+                url = 'getstrength'
+                break
+              case 14:
+                url = 'nettype'
+                break
+              case 15:
+                url = 'location'
+                break
+              case 16:
+                url = 'onlinelist'
+                break
+              case 17:
+                url = 'cesim/sim=4'
+                break
+              case 21:
+                url =
+                  'setwifi/ssid=' + other['ssid'] + '&passwd=' + other['passwd']
+                break
+              case 22:
+                url = 'wifihide/hide=' + other['hide']
+                break
+              case 23:
+                url = 'reboot'
+                break
+              case 24:
+                url = 'firstboot'
+                break
+              case 25:
+                url = 'cesim/sim=' + other['sim']
+                break
+              case 26:
+                url =
+                  'macfilter/mac=' + other['mac'] + '&enable=' + other['enable']
+                break
+              default:
+                break
+            }
+
+            if (url == '') {
+              this.orderLoading = false
+              return false
+            }
+
+            axios
+              .get('http://192.168.188.1/cgi-bin/commandcgi?=' + url, {
+                headers: {
+                  Accept: 'text/html, */*',
+                  'content-Type': 'application/x-www-form-urlencoded'
+                }
+              })
+              .then((res) => {
+                localStorage.isOnline = 2
+                // 转json
+                let data_obj = cpeTransJson(res.data)
+                if (data_obj && data_obj != 'error') {
+                  switch (operate) {
+                    case 11:
+                      // 查询全部
+                      this.linkDevNum = data_obj.online
+                      updateHb(2, data_obj.online)
+
+                      if (data_obj.hide == 0) {
+                        // $('#switchWifi').prop('checked', 'true')
+                        // $('#wifi_is_hidden_msg').text('热点可见')
+                      } else {
+                        // $('#switchWifi').removeAttr('checked')
+                        // $('#wifi_is_hidden_msg').text('热点隐藏')
+                      }
+
+                      //热点密码等
+                      if (
+                        localStorage.apname != data_obj.ssid ||
+                        localStorage.appwd != data_obj.passwd
+                      ) {
+                        localStorage.apname = data_obj.ssid
+                        localStorage.appwd = data_obj.passwd
+
+                        this.apname = data_obj.ssid
+                        this.appwd = data_obj.passwd
+
+                        if (data_obj.ssid != '' && data_obj.passwd != '') {
+                          let upt_obj = {
+                            ssid: data_obj.ssid,
+                            key: data_obj.passwd
+                          }
+                          updateHb(5, JSON.stringify(upt_obj)) //更新当前使用卡片密码
+                        }
+                      }
+
+                      // 4G网络时才展示
+                      if (data_obj.getstrength && data_obj.getstrength != 0) {
+                        localStorage.rssi = data_obj.getstrength
+                      }
+                      localStorage.esim = data_obj.cesim
+
+                      this.cpeReq(14)
+                      break
+                    case 14:
+                      if (
+                        data_obj.networktype &&
+                        data_obj.networktype == 'eth1'
+                      ) {
+                        this.isSoftTrans = true
+                        if (localStorage.esim && localStorage.esim != '') {
+                          switch (localStorage.esim) {
+                            case 0:
+                              this.operator = 2
+                              this.signMsg = '电信'
+                              break
+                            case 1:
+                              this.operator = 1
+                              this.signMsg = '联通'
+                              break
+                            case 2:
+                              this.operator = 3
+                              this.signMsg = '移动'
+                              break
+                            default:
+                              this.operator = 2
+                              this.signMsg = '电信'
+                              break
+                          }
+
+                          if (this.operator != localStorage.operator) {
+                            localStorage.operator = this.operator
+                            updateHb(3, localStorage.esim)
+                          }
+                        }
+
+                        let rssi = (localStorage.rssi * 31) / 100
+                        let rsrp = 0
+                        if (rssi > 31) {
+                          rssi = 31
+                        }
+                        if (rssi >= 25 && rssi <= 31) {
+                          rsrp = (rssi - 25) * 3 - 70
+                        } else if (rssi >= 20 && rssi < 25) {
+                          rsrp = (rssi - 20) * 2 - 80
+                        } else if (rssi >= 15 && rssi < 20) {
+                          rsrp = (rssi - 15) * 2 - 90
+                        } else if (rssi >= 10 && rssi < 15) {
+                          rsrp = (rssi - 10) * 2 - 100
+                        } else if (rssi >= 5 && rssi < 10) {
+                          rsrp = rssi - 110
+                        } else {
+                          rsrp = -98
+                        }
+
+                        rsrp = Math.ceil(rsrp)
+                        this.signPower = getRsrp(rsrp)
+
+                        updateHb(4, rsrp)
+                      } else {
+                        this.signMsg = '宽带联网'
+                        this.signPower = ''
+                        this.isSoftTrans = false
+                      }
+                      break
+                    case 17:
+                      if (data_obj.info && data_obj.info.trim() == 'success') {
+                        switch (data_obj.cesim) {
+                          case 0:
+                            this.operator = 2
+                            operator = '电信'
+                            break
+                          case 1:
+                            this.operator = 1
+                            operator = '联通'
+                            break
+                          case 2:
+                            this.operator = 3
+                            operator = '移动'
+                            break
+                          default:
+                            operator = ''
+                            break
+                        }
+                        this.signMsg = operator
+                        localStorage.operator = this.operator
+                        if (other['sim'] && other['sim'] != '') {
+                          if (other['sim'] == data_obj.cesim) {
+                            updateHb(3, other['sim']) //更新当前使用卡片
+                          }
+                        }
+                      }
+
+                      break
+                    case 21:
+                      // 修改密码
+                      if (data_obj.info && data_obj.info.trim() == 'success') {
+                        localStorage.apname = data_obj.ssid
+                        localStorage.appwd = data_obj.passwd
+
+                        let upt_obj = {
+                          ssid: other['ssid'],
+                          key: other['passwd']
+                        }
+                        updateHb(5, JSON.stringify(upt_obj)) //更新当前使用卡片
+                        //判断修改密码远程返回结果
+                        vant.Toast('热点名称和密码修改成功，请重新连接WiFi')
+                      }
+                      break
+                    case 22:
+                      // 显示/隐藏WiFi
+                      if (data_obj.info && data_obj.info.trim() == 'success') {
+                        // if (data_obj.hide == 0) {
+                        //   $('#switchWifi').prop('checked', 'true')
+                        //   $('#wifi_is_hidden_msg').text('热点可见')
+                        // } else {
+                        //   $('#switchWifi').removeAttr('checked')
+                        //   $('#wifi_is_hidden_msg').text('热点隐藏')
+                        // }
+                      }
+                      break
+                    case 25:
+                      // 切换后要再查一次
+                      this.cpeReq(17, { cesim: other['sim'] })
+                      break
+                  }
+                }
+
+                this.orderLoading = false
+              })
+              .catch((e) => {
+                this.showLinkDevMsg = true
+                this.orderLoading = false
+                localStorage.isOnline = 2
+                if (operate != 11 && operate != 14) {
+                  vant.Toast('网络断开，请连接「无线猫灵」后重试')
+                }
+              })
+          },
+          ygCallProductXML(xmlName) {
+            if (xmlName != 'device_date') resetInterval()
+            var url = ''
+            var content
+            url =
+              'http://192.168.1.1/xml_action.cgi?method=get&module=duster&file=' +
+              xmlName
+
+            axios
+              .get(url, {
+                dataType: 'xml',
+                headers: {
+                  'content-Type': 'text/xml;charset=UTF-8',
+                  Authorization: getAuthHeader('GET')
+                },
+                withCredentials: true
+              })
+              .then((res) => {
+                let data = res.data
+                if (xmlName == 'status1') {
+                  //查看信号强度后再查看设备连接数
+                  const rssi = $(data).find('rssi4').text()
+                  if (rssi == 0) {
+                  } else {
+                    let rssi_msg = getRsrp(rssi)
+                    this.signPower = rssi_msg
+                    updateHb(4, rssi)
+
+                    const num = $(data).find('nr_connected_dev').text()
+                    if (this.linkDevNum != num) {
+                      this.linkDevNum = num
+                      updateHb(2, num)
+                    }
+                  }
+                  this.ygCallProductXML('esim')
+                } else if (xmlName == 'uapxb_wlan_security_settings') {
+                  // 热点名称 & 密码
+                  const ssid = hex2ascii($(data).find('ssid').text())
+                  const key = $(data)
+                    .find($(data).find('wlan_security').children('mode').text())
+                    .find('key')
+                    .text()
+                  //热点密码等
+                  if (
+                    (ssid != '' && localStorage.apname != ssid) ||
+                    (key != '' && localStorage.appwd != key)
+                  ) {
+                    localStorage.apname = ssid
+                    localStorage.appwd = key
+                    this.apname = ssid
+                    this.appwd = key
+
+                    let pwd_obj = {
+                      ssid: ssid,
+                      key: key
+                    }
+                    updateHb(5, JSON.stringify(pwd_obj))
+                  }
+
+                  // 隐藏热点
+                  const ssid_bcast = $(data).find('ssid_bcast').text()
+                  console.log('隐藏显示WiFi结果：' + ssid_bcast)
+
+                  //修改后已经断开了，直接显示更新
+                  // //后台存储的与查询接口相反
+                  // if (hide_type == 1) {
+                  //   hidden_msg = '热点隐藏'
+                  //   wifi_is_hidden = 1
+                  //   hide_type = 0
+                  // } else {
+                  //   hidden_msg = '热点可见'
+                  //   wifi_is_hidden = 0
+                  //   hide_type = 1
+                  // }
+                  // // $("#wifi_is_hidden_msg").text(hidden_msg)
+
+                  // updateHb(1, hide_type)
+                } else if (xmlName == 'esim') {
+                  const esim = $(data).find('simid').text()
+                  switch (esim) {
+                    case '0':
+                    case 0:
+                      this.operator = 2
+                      operator = '电信'
+                      break
+                    case '1':
+                    case 1:
+                      this.operator = 1
+                      operator = '联通'
+                      break
+                    case '2':
+                    case 2:
+                      this.operator = 3
+                      operator = '移动'
+                      break
+                    default:
+                      operator = ''
+                      break
+                  }
+                  this.signMsg = operator
+
+                  if (this.operator != localStorage.operator && this.operator != '') {
+                    localStorage.operator = this.operator
+                    updateHb(3, esim)
+                  }
+                  this.ygCallProductXML('uapxb_wlan_security_settings')
+                }
+                this.orderLoading = false
+              })
+              .catch((e) => {
+                this.orderLoading = false
+                vant.Toast('热点连接已断开，请重新连接')
+              })
+          },
+          ygLogin(type, ssid, pwd, is_hide) {
+            ygLoginSub(
+              type,
+              () => {
+                switch (type) {
+                  case 1:
+                    //查询wifi名称和密码
+                    this.ygCallProductXML('uapxb_wlan_security_settings')
+                    break
+                  case 2:
+                    //查询用户连接数
+                    this.ygCallProductXML('device_management_all')
+                    break
+                  case 3:
+                    //查询信号强度
+                    this.ygCallProductXML('status1')
+                    break
+                  case 4:
+                    //查询当前卡片
+                    this.ygCallProductXML('esim')
+                    break
+                  case 5:
+                    //修改wifi名称或密码
+                    var configMap = ModifyWifiConfigYG(2, ssid, pwd, is_hide) //is_hide 0是隐藏，1是显示
+                    this.orderLoading = false
+                    postXMLYG('uapxb_wlan_security_settings', configMap)
+                    break
+                  case 6:
+                    //切换当前卡片
+                    var configMap = ModifyWifiConfigYG(1, ssid)
+                    this.orderLoading = false
+                    postXMLYG('esim', configMap)
+                    break
+                  default:
+                    break
+                }
+              },
+              () => {
+                this.showLinkDevMsg = true
+                this.orderLoading = false
+              }
+            )
+          },
+          /**
+           * @param {*} type 1：查看隐藏/显示状态，2：获取设备连接数，3：获取信号强度，4：修改密码，5：隐藏/显示热点，6：切换网络
+           */
+          hbPostXml(objPath, objMethod, type, controlMap) {
+            var bShowWaitBox = true
+
+            if (null == controlMap || undefined == controlMap) {
+              controlMap = new XMap()
+              bShowWaitBox = false //don't show waitting box if get data
+            } else if (objPath == 'ota' || objMethod == 'router_call_reboot') {
+              bShowWaitBox = false
+            }
+            controlMap.push_front('RGW/param/obj_method', objMethod)
+            controlMap.push_front('RGW/param/obj_path', objPath)
+            controlMap.push_front('RGW/param/session', '000')
+            controlMap.push_front('RGW/param/method', 'call')
+            var xmlData = CreateXmlDocStr(controlMap)
+
+            var url = 'http://192.168.0.1/xml_action.cgi?method=set'
+            axios
+              .post(url, xmlData, {
+                dataType: 'xml',
+                timeout: 360000,
+                headers: {
+                  Accept: 'application/xml, text/xml, */*; q=0.01',
+                  'content-Type':
+                    'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                withCredentials: true
+              })
+              .then((res) => {
+                const data = res.data
+                if (type == 1) {
+                  // 获取热点名称密码和wifi显示状态
+                  var ssid = $(data).find('ssid').text()
+                  var key = $(data).find('key').text()
+                  if (
+                    (ssid != '' && localStorage.apname != ssid) ||
+                    (key != '' && localStorage.appwd != key)
+                  ) {
+                    localStorage.apname = ssid
+                    localStorage.appwd = key
+                    this.apname = ssid
+                    this.appwd = key
+
+                    let pwd_obj = {
+                      ssid: ssid,
+                      key: key
+                    }
+                    updateHb(5, JSON.stringify(pwd_obj))
+                  }
+
+                  var hidden = $(data).find('hidden').text()
+                  console.log('WIFI隐藏or显示：' + hidden)
+                  // if (hide_type == 1) {
+                  //   hidden_msg = '热点隐藏'
+                  // } else {
+                  //   hidden_msg = '热点可见'
+                  // }
+                  // $('#wifi_is_hidden_msg').text(hidden_msg)
+                } else if (type == 2) {
+                  const num = $(data).find('active_clients_num').text()
+                  console.log('获取设备连接数：' + num)
+
+                  if (this.linkDevNum != num) {
+                    this.linkDevNum = num
+                    updateHb(2, num)
+                  }
+
+                  this.hbPostXml('wireless', 'wifi_get_detail', 1)
+                } else if (type == 3) {
+                  var rssi = $(data).find('rssi').text()
+                  var sys_mode = $(data).find('sys_mode').text()
+                  if (sys_mode == 1) {
+                    rssi = rssi - 111
+                  } else {
+                    rssi = rssi - 141
+                  }
+
+                  //判断
+                  var rssi_msg = getRsrp(rssi)
+                  this.signPower = rssi_msg
+                  updateHb(4, rssi)
+
+                  // 查询信号强度后在查询连接数
+                  this.hbPostXml('statistics', 'get_active_clients_num', 2)
+                } else if (type == 4) {
+                  let setting_response = $(data).find('setting_response').text()
+                  console.log('修改密码结果：' + setting_response)
+                  if (setting_response.toLowerCase() == 'ok') {
+                    vant.Toast('热点名称和密码修改成功，请重新连接')
+                  }
+                } else if (type == 5) {
+                  var setting_response = $(data).find('setting_response').text()
+                  console.log('隐藏显示WiFi结果：' + setting_response)
+                  if (setting_response.toLowerCase() == 'ok') {
+                    //修改后已经断开了，直接显示更新
+                    if (hide_type == 1) {
+                      hidden_msg = '热点隐藏'
+                      wifi_is_hidden = 1
+                      hide_type = 0
+                    } else {
+                      hidden_msg = '热点可见'
+                      wifi_is_hidden = 0
+                      hide_type = 1
+                    }
+                    $('#wifi_is_hidden_msg').text(hidden_msg)
+
+                    updateHb(1, wifi_is_hidden)
+                  }
+                } else if (type == 6) {
+                  // 针对软切版hb，暂未上线
+                  var setting_response = $(data).find('setting_response').text()
+                  console.log('切换esim结果：' + setting_response)
+                  if (setting_response.toLowerCase().indexOf('success') != -1) {
+                    vant.Toast(
+                      '网络切换成功，设备搜索信号大约耗时1~2分钟，请勿断电'
+                    )
+                    // var esim = setting_response.replace(/[^\d]/g, '');
+                    // updateHb(3, esim - 1) //更新当前使用卡片
+                  } else if (
+                    setting_response.toLowerCase().indexOf('not need') != -1
+                  ) {
+                    vant.Toast('切换完成')
+                  } else {
+                    vant.Toast('切换失败')
+                  }
+                }
+
+                this.orderLoading = false
+              })
+              .catch((e) => {
+                this.orderLoading = false
+                if (type != 3) {
+                  if (type == 4) {
+                    // 切换网络
+                    vant.Toast('热点名称和密码修改成功，请重新连接')
+                  } else {
+                    vant.Toast('热点连接已断开，请重新连接')
+                  }
+                }
+              })
+          },
+          // 初始化页面
+          loadMain(refresh) {
+            if (refresh) {
+              if (localStorage.welcomePop == 2) {
+                this.welcomePop = false
+                localStorage.removeItem('welcomePop')
+              }
+              if (localStorage.welcomePop && localStorage.welcomePop == 1) {
+                localStorage.welcomePop = 2
+              }
+
+              this.showPackName = true
+              // 重新获取数据
+              const data = {
+                sim: this.number
+              }
+              axios
+                .post('/Equipment/query_equipment_new', qs.stringify(data))
+                .then((res) => {
+                  const data = res.data
+                  console.log(data)
+
+                  if (data.retCode === 0) {
+                    localStorage.force_refresh = 2
+                    let retData = data.retData
+
+                    this.operator = retData.operatorCode // 当前运营商1联通，2电信，3移动
+                    this.signMsg =
+                      retData.operatorCode == 1
+                        ? '联通'
+                        : retData.operatorCode == 3
+                        ? '移动'
+                        : '电信'
+                    this.signPower =
+                      retData.rssi == '-' ? '信号正常' : retData.rssi + '('+retData.rssi_num+'dBm)'
+
+                    if (!retData.device_user_num) {
+                      this.linkDevNum = 0
+                    } else {
+                      this.linkDevNum = retData.device_user_num
+                    }
+                    if(!retData.todayFlow){
+                      this.dayFlow = 0
+                    } else {
+                      this.dayFlow = retData.todayFlow
+                    }
+                    this.showFlowError =
+                      retData.todayFlow > 30720 ? true : false
+
+                    if(!retData.residual_flow){
+                      this.packLeftFlow = 0
+                    } else {
+                      this.packLeftFlow = retData.residual_flow
+                    }
+                    if (
+                      retData.thisPackage &&
+                      retData.thisPackage.indexOf('（') > -1
+                    ) {
+                      this.thisPackName = retData.thisPackage.split('（')[0]
+                    } else {
+                      if (!retData.thisPackage || retData.thisPackage == '') {
+                        if (retData.count_flow == '1024.00 M') {
+                          this.thisPackName = '1G/7天体验包'
+                        } else {
+                          this.showPackName = false
+                        }
+                      } else {
+                        this.thisPackName = retData.thisPackage
+                      }
+                    }
+                    this.limitTime = retData.flow_date
+                    if(!retData.limit_msg){
+                      this.limitMsg = ''
+                    } else {
+                      this.limitMsg = retData.limit_msg
+                    }
+
+                     // 1已实名，2未实名
+                    if(retData.operatorCode != 1) {
+                      this.authStatus = retData.dx_auth
+                      if(retData.card_auth == 1 && retData.dx_auth == 2)  {
+                        this.authStatus = 3
+                      }
+                    } else {
+                      if(retData.lt_auth != 2) {
+                        this.authStatus = 1
+                      }
+                    }
+
+                    this.authMsg =
+                      this.authStatus === 1 ? '已实名' : '未实名网络不可用' // 1已实名，2未实名
+                    this.authIccid =
+                      retData.operatorCode == 1
+                        ? retData.lt_number
+                        : retData.dx_number
+                    this.apname = retData.ssid
+                    this.appwd = retData.pwd
+                    this.hasSubscribed =
+                      retData.is_subscribe == 1 ? true : false
+
+                    // 当前是大流量还是小流量
+                    this.thisPackType = retData.is_limit_pack
+                    this.rate =
+                      retData.is_limit_pack === 1
+                        ? Math.ceil(
+                            (this.packLeftFlow - this.dayFlow) /
+                              this.packLeftFlow
+                          ) * 100
+                        : 0
+
+                    this.isUnTrinetTab = retData.is_tri_net == 1 ? false : true
+
+                    this.showLeftPower = false
+                    this.isSoftTrans = true
+                    if (retData.dev_ver && retData.dev_ver == 2) {
+                      // 2== hb
+                      localStorage.deviceType = 'hb'
+                      this.isSoftTrans = false
+                    } else if (retData.dev_ver && retData.dev_ver == 4) {
+                      // 4== hb软切
+                      localStorage.deviceType = 'hb'
+                    } else if (retData.dev_ver && retData.dev_ver == 3) {
+                      localStorage.deviceType = 'yg'
+                    } else if (retData.dev_ver && retData.dev_ver == 5) {
+                      localStorage.deviceType = 'yy'
+                    } else if (retData.dev_ver && retData.dev_ver == 6) {
+                      localStorage.deviceType = 'cpew'
+                    } else {
+                      localStorage.deviceType = 'ufi'
+                      this.isSoftTrans = false
+                    }
+
+                    if (retData.card_is_mifi == 1) {
+                      localStorage.deviceType = 'mifi'
+                      this.isSoftTrans = true
+                      this.isUnTrinetTab = true
+
+                      // mifi 的数据是不同的
+                      if (
+                        (!this.thisPackName || this.thisPackName == '-') &&
+                        retData.packageName != ''
+                      ) {
+                        this.thisPackName = retData.packageName
+                        this.showPackName = true
+                      }
+                      this.showLeftPower = true
+                      this.leftPower = (retData.battery || 0) + '%'
+                      this.apname = retData.apname
+                      this.appwd = retData.appwd
+                      this.limitTime = retData.expirationTime
+                      this.signPower = retData.siglte+'dBm'
+                      // this.signPower = '信号强'
+                      // if (retData.siglte <= -98) {
+                      //   this.signPower = retData.siglte+'dBm'
+                      //   // this.signPower = '信号一般'
+                      // } else if (retData.siglte <= -80) {
+                      //   this.signPower = '信号良好'
+                      // } else if (retData.siglte > -80) {
+                      //   this.signPower = '信号强'
+                      // }
+
+                      if(!retData.client){
+                        this.linkDevNum = 0
+                      } else {
+                        this.linkDevNum = retData.client
+                      }
+                      this.signMsg = retData.ca
+                      this.operator =
+                        retData.ca == '联通' ? 1 : retData.ca == '移动' ? 3 : 2
+                      if (
+                        retData.mifi_dx_card_auth &&
+                        retData.mifi_dx_card_auth == 1
+                      ) {
+                        if(this.operator === 2) {
+                          this.dxAuthPop = true
+                        }
+                        this.mifi_dx_card_auth = 1
+                        this.authMsg = '请尽快完成实名'
+                        this.signMsgMifi = '电信'
+                      } else {
+                        this.mifi_dx_card_auth = 2
+                        this.signMsgMifi = ''
+                      }
+                    }
+
+                    localStorage.apname = this.apname
+                    localStorage.appwd = this.appwd
+                    localStorage.mainData = JSON.stringify(this.$data)
+                    localStorage.operator = this.operator
+
+                    this.orderLoading = false
+                    setTimeout(() => {
+                      if (localStorage.deviceType == 'yg') {
+                        this.ygLogin(3)
+                      } else if (localStorage.deviceType == 'hb') {
+                        hbLogin(
+                          () => {
+                            this.hbPostXml('cm', 'get_link_context', 3)
+                          },
+                          () => {
+                            this.showLinkDevMsg = true
+                            this.orderLoading = false
+                          },
+                          3
+                        )
+                      } else if (localStorage.deviceType == 'yy') {
+                        this.yyReq(1, 1)
+                      } else if (localStorage.deviceType == 'cpew') {
+                        this.cpeReq(11)
+                      }
+                    }, 100)
+
+                    setTimeout(() => {
+                      if (
+                        this.operator == 1 &&
+                        localStorage.deviceType != 'mifi'
+                      ) {
+                        this.checkIsMm()
+                      }
+                    }, 100)
+
+                    if (!retData.is_bind) {
+                      this.bindDev()
+                    }
+                  } else {
+                    const this_time = new Date().getTime()
+                    localStorage.setItem('time', this_time - 60000)
+                    this.orderLoading = false
+                    if (data.retMsg == 'dy') {
+                      window.location.href =
+                        'http://iot.186.gd.cn/kyhl-weixin-1.0/user/getUserCode.do?code=' +
+                        this.number
+                    } else {
+                      if(!data.retMsg){
+                        data.retMsg = '网络异常'
+                      }
+                      vant.Toast(data.retMsg)
+                    }
+                  }
+                })
+                .catch((e) => {
+                  const this_time = new Date().getTime()
+                  localStorage.setItem('time', this_time - 60000)
+                  this.orderLoading = false
+                  console.log(e)
+                  vant.Toast('网络异常')
+                })
+            } else {
+              Object.assign(this.$data, JSON.parse(localStorage.mainData))
+              this.apname = localStorage.apname
+              this.appwd = localStorage.appwd
+              this.orderLoading = false
+            }
+          },
+          hideWelcomePop() {
+            this.welcomePop = false
+            localStorage.removeItem('welcomePop')
+          },
+          bindDev() {
+            const data = {
+              number: this.number,
+              operatorsId: 2
+            }
+            axios
+              .post('/Bind/bind_card', qs.stringify(data))
+              .then((res) => {})
+              .catch((e) => {
+                console.log('网络异常')
+              })
+          },
+          handleTransRecharge() {
+            window.location.href = '/welcome/pages/wuxiancat/recharge'
+          },
+          handleChangePwd() {
+            this.appwd = this.showPwd
+          },
+          showUptPasswdPop() {
+            if (this.appwd == '') {
+              vant.Toast('请扫码进入')
+              return false
+            }
+            // 首次打开修改密码tab时，showPwd 是空
+            let hasShowPwdTab = this.showPwd
+            if (hasShowPwdTab === '') {
+              this.orderLoading = true
+              // 检测是否本人操作
+              const data = {
+                number: this.number
+              }
+              axios
+                .post('/Equipment/getHandle', qs.stringify(data))
+                .then((res) => {
+                  const data = res.data
+
+                  this.orderLoading = false
+                  this.passwdPop = true
+                  this.showPwd = this.appwd // '*'.repeat(this.appwd.length)
+
+                  if (data.retCode === 0) {
+                    if (
+                      (data.retData &&
+                        data.retData.isOne &&
+                        data.retData.isOne === 1) ||
+                      !data.retData.phone
+                    ) {
+                      // 系统未存储手机号，直接默认为本人
+                      this.unSelf = false
+                    } else {
+                      this.unSelf = true
+                      this.phone = data.retData.phone
+                    }
+                  }
+                })
+                .catch((e) => {
+                  this.orderLoading = false
+                  vant.Toast('网络异常')
+                })
+            } else {
+              this.passwdPop = true
+              this.showPwd = this.appwd //'*'.repeat(this.appwd.length)
+            }
+          },
+          handleTogglePwd() {
+            if (!this.isShowPwd) {
+              this.showPwd = this.appwd
+            } else {
+              this.showPwd = '*'.repeat(this.appwd.length)
+            }
+
+            this.isShowPwd = !this.isShowPwd
+          },
+          submitChangePwd() {
+            // 检测
+            const newApname = this.apname.trim()
+            const newAppwd = this.appwd.trim()
+            if (
+              newApname !== localStorage.apname ||
+              newAppwd !== localStorage.appwd
+            ) {
+              if (newAppwd.length < 8) {
+                this.errAppwdMsg = '密码长度不足8位'
+                return false
+              } else if (newAppwd.length > 16) {
+                this.errAppwdMsg = '密码长度超过16位'
+                return false
+              } else if (!/^\w+$/.test(newAppwd)) {
+                this.errAppwdMsg = '热点密码只能输入字母数字和下划线'
+                return false
+              } else {
+                this.errAppwdMsg = ''
+              }
+
+              if (newApname.length < 1) {
+                this.errApnameMsg = '热点名不可为空'
+                return false
+              } else if (getStrlen(newApname) > 20) {
+                this.errApnameMsg = '热点名长度超过20位，中文超过10位'
+                return false
+              } else {
+                this.errApnameMsg = ''
+              }
+
+              this.orderLoading = true
+              const data = {
+                number: this.number,
+                apname: newApname,
+                appwd: newAppwd,
+                phone: this.phone,
+                code: this.sms
+              }
+              if (localStorage.deviceType === 'mifi') {
+                // mifi
+                axios
+                  .post('/equipment/update_pwd_new', qs.stringify(data))
+                  .then((res) => {
+                    this.orderLoading = false
+                    if (res.data.retCode == 0) {
+                      vant.Toast('热点名称和密码修改成功，请重新连接')
+                    } else {
+                      if (res.data.retMsg.indexOf('过快') > -1) {
+                        vant.Toast('请勿频繁操作')
+                      } else {
+                        vant.Toast('热点名称和密码修改失败，请重试')
+                      }
+                    }
+                  })
+                  .catch((e) => {
+                    this.orderLoading = false
+                    vant.Toast('网络异常')
+                  })
+              } else {
+              axios
+                .post('/equipment/update_pwd_cat_start', qs.stringify(data))
+                .then((res) => {
+                  if (res.data.retCode === 0) {
+                    if (localStorage.deviceType === 'yy') {
+                      this.yyReq(3, { apname: newApname, appwd: newAppwd })
+                    } else if (localStorage.deviceType === 'yg') {
+                      // 域格
+                      this.ygLogin(5, newApname, newAppwd)
+                    } else if (localStorage.deviceType === 'cpew') {
+                      // cpe
+                      this.cpeReq(21, { ssid: newApname, passwd: newAppwd })
+                    } else if (localStorage.deviceType === 'hb') {
+                      // 和邦
+                      hbLogin(
+                        () => {
+                          var configMap = ModifyWifiConfig(
+                            '',
+                            newApname,
+                            newAppwd
+                          )
+                          this.hbPostXml(
+                            'wireless',
+                            'wifi_set_2.4g',
+                            4,
+                            configMap
+                          )
+                        },
+                        () => {
+                          this.showLinkDevMsg = true
+                          this.orderLoading = false
+                        }
+                      )
+                    } else {
+                      // 默认信丰
+                      xfChangePwd(newApname, newAppwd)
+                    }
+                  }
+                })
+                .catch((e) => {
+                  this.orderLoading = false
+                  vant.Toast('热点账号和密码更新异常，请重试')
+                })
+              }
+              setTimeout(() => {
+                this.orderLoading = false
+              }, 3000)
+            } else {
+              vant.Toast('热点信息无需更新')
+            }
+            this.passwdPop = false
+          },
+          showTransDevTab() {
+            if (!this.hasQueryDevList) {
+              const data = {
+                operatorsId: 2
+              }
+              axios
+                .post('/Bind/get_numbers', qs.stringify(data))
+                .then((res) => {
+                  const data = res.data
+                  if (data.retCode === 0) {
+                    this.hasQueryDevList = true
+                    if (data.retData.length > 0) {
+                      let devListTmp = data.retData.filter((v) => {
+                        return v.card_number !== this.number
+                      })
+                      devListTmp = devListTmp.map((v) => {
+                        return {
+                          number: v.card_number
+                        }
+                      })
+
+                      devListTmp.unshift({ number: this.number })
+                      this.devList = devListTmp
+
+                      this.popHeight = this.devList.length > 5 ? '50%' : 'auto'
+                      this.transDevPop = true
+                    } else {
+                      vant.Toast('暂无可切换设备，请扫码添加')
+                      return false
+                    }
+                  } else {
+                    if(!data.retMsg){
+                      data.retMsg = '网络异常'
+                    }
+                    vant.Toast(data.retMsg)
+                  }
+                })
+                .catch((e) => {
+                  console.log(e)
+                })
+            } else {
+              if (this.devList.length <= 0) {
+                vant.Toast('暂无可切换设备，请扫码添加')
+                return false
+              }
+              this.transDevPop = true
+            }
+          },
+          handleTransDev(number, index, e) {
+            if (e.target.className === 'font-g') {
+              return false
+            }
+
+            this.devList.splice(index, 1)
+            this.devList.unshift({ number: number })
+
+            this.number = number
+            localStorage.number = number
+            this.transDevPop = false
+
+            this.orderLoading = true
+            this.loadMain(true)
+          },
+          handleRemoveDev(number, index) {
+            this.orderLoading = true
+            const data = {
+              number: number,
+              operatorsId: 2
+            }
+            axios
+              .post('/Bind/cancel_bind2', qs.stringify(data))
+              .then((res) => {
+                if (res.data.retCode === 0) {
+                  this.devList.splice(index, 1)
+                  this.orderLoading = false
+                  vant.Toast('已移除')
+                  this.transDevPop = false
+                  if (number === this.number) {
+                    this.number = this.devList[0].number
+                    localStorage.number = this.devList[0].number
+
+                    this.loadMain(true)
+                  }
+                } else {
+                  vant.Toast(res.data.retMsg)
+                }
+              })
+              .catch((e) => {
+                console.log(e)
+              })
+          },
+          showTransNet() {
+            //显示切换网络面板
+            if (localStorage.deviceType == 'mifi') {
+              this.operatorList = [
+                { text: '电信', id: 2 },
+                { text: '联通', id: 1 },
+                { text: '移动', id: 3 }
+              ]
+            } else {
+              this.operatorList = [
+                { text: '电信', id: 2 },
+                { text: '联通', id: 1 }
+              ]
+            }
+
+            switch (this.operator) {
+              case 1:
+                this.operatorIndex = 1
+                break
+              case 2:
+                this.operatorIndex = 0
+                break
+              case 3:
+                this.operatorIndex = 2
+                break
+              default:
+                break
+            }
+
+            this.transNetPop = true
+          },
+          submitTransNet(data) {
+            //操作切换网络
+            this.transNetPop = false
+            if (data.id == this.operator) {
+              vant.Toast('无需更新')
+              return false
+            }
+
+            this.orderLoading = true
+            if (localStorage.deviceType == 'yg') {
+              if (data.id == 1) {
+                this.ygLogin(6, 1)
+              } else if (data.id == 3) {
+                this.ygLogin(6, 0)
+              }
+            } else if (localStorage.deviceType == 'yy') {
+              if (data.id == 1) {
+                data.id = '4'
+              } else {
+                data.id = '3'
+              }
+
+              this.yyReq(2, { esim: data.id })
+            } else if (localStorage.deviceType == 'cpew') {
+              if (data.id == 1) {
+                this.cpeReq(25, { sim: 1 })
+              } else if (data.id == 3) {
+                this.cpeReq(25, { sim: 0 })
+              }
+            } else if (localStorage.deviceType == 'mifi') {
+              // 检测是否本人操作
+              let carrier = ''
+              if (data.id == 2) {
+                carrier = '1'
+              } else if (data.id == 1) {
+                carrier = '0'
+              } else {
+                carrier = '3'
+              }
+
+              let mdata = {
+                sim: localStorage.number,
+                carrier: carrier,
+                type: 1
+              }
+              axios
+                .post('/Equipment/switchY', qs.stringify(mdata))
+                .then((res) => {
+                  const data = res.data
+                  if (data.retCode === 0) {
+                    vant.Toast('网络切换成功，请重新启动「无线猫灵」')
+                  } else {
+                    vant.Toast(data.retMsg || '切换失败，请稍候重试')
+                  }
+                })
+                .catch((e) => {
+                  this.orderLoading = false
+                  vant.Toast('网络异常')
+                })
+            }
+
+            setTimeout(() => {
+              this.orderLoading = false
+            }, 3000)
+          },
+          handleAuth() {
+            if (this.operator === 1) {
+              // 联通
+              if(this.mifi_dx_card_auth == 1) {
+                this.dxAuthPop = true
+              } else {
+                this.ltAuthPop = true
+              }
+            } else if (this.operator === 2) {
+              if (this.mifi_dx_card_auth === 1) {
+                this.dxAuthPop = true
+              } else {
+                if(this.authStatus == 3) {
+                  this.dxAuthPop = true
+                } else {
+                  window.location.href = '/welcome/pages/wuxiancat/welcome'
+                }
+              }
+            }
+          },
+          gotoDxPlatform() {
+            window.location.href =
+              'http://iotapp.iot.189.cn:9090/uapp/certifhtml/certif_entry.html?userCode=nGmFFq6z4WZxGKIgPw+jBw==&passWord=97xjIqkYSeyG6wc5YiqGjA=='
+          },
+          handleSendMsg() {
+            if (this.phone === '' || this.phone === '-') {
+              vant.Toast('系统异常，请刷新页面重试')
+              return false
+            }
+
+            if (this.codeTxt !== '获取验证码') {
+              return false
+            }
+
+            this.orderLoading = true
+
+            const data = {
+              phone: this.phone
+            }
+            axios
+              .post('/Action/send_msg', qs.stringify(data))
+              .then((res) => {
+                this.orderLoading = false
+
+                if (res.data.retCode === 0) {
+                  vant.Toast('验证码已发送，请注意查收')
+                  let time = 30
+                  this.codeTxt = time + 's'
+                  let interval = setInterval(() => {
+                    if (1 === time) {
+                      clearInterval(interval)
+                      this.codeTxt = '获取验证码'
+                    } else {
+                      time--
+                      this.codeTxt = time + 's'
+                    }
+                  }, 1000)
+                } else {
+                  vant.Toast(res.data.retMsg)
+                }
+              })
+              .catch((e) => {
+                this.orderLoading = false
+                vant.Toast('短信发送失败')
+              })
+          },
+          /**
+           * 检测是否茂名使用
+           */
+          checkIsMm() {
+            const data = {
+              sim: localStorage.sim
+            }
+            axios
+              .post('/Equipment/check_is_mm', qs.stringify(data))
+              .then((res) => {
+                if (res.data.retCode == 0) {
+                  if (res.data.retData.is_mm && res.data.retData.is_mm == 1) {
+                    this.authMsg = '茂名暂不支持使用联通网络'
+                  }
+                }
+              })
+              .catch((e) => {
+                console.log('网络异常')
+              })
+          }
+        }
+      })
+      app.use(vant)
+      app.use(vant.Lazyload)
+      app.use(vant.Toast)
+      app.mount('#app')
+    </script>
+  </body>
+</html>
